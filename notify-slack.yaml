@@ -1,0 +1,228 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: notify-slack
+  annotations:
+    tekton.dev/pipelines.minVersion: 0.12.1
+    tekton.dev/tags: konflux
+spec:
+  description: Sends message to slack using incoming webhook
+  params:
+    - name: release
+      type: string
+    - name: releasePlan
+      type: string
+    - name: snapshot
+      type: string
+    - name: key-name
+      description: Key in the key in secret which contains webhook URL for slack.
+    - name: message
+      description: Message to be sent
+      default: |
+        Release $(params.release)
+        ReleasePlan $(params.releasePlan)
+        Snapshot $(params.snapshot)
+    - name: secret-name
+      description: |
+        Secret with at least one key where value is webhook URL for slack.
+        eg. oc create secret generic my-secret --from-literal team1=https://hooks.slack.com/services/XXX/XXXXXX --from-literal team2=https://hooks.slack.com/services/YYY/YYYYYY
+      default: slack-webhook-notification-secret
+  tasks:
+    - name: echo-resources
+      taskSpec:
+       steps:
+        - name: echo resources
+          image: ubuntu:latest
+          script: |
+            #!/usr/bin/env sh
+            echo "Release $(params.release)"
+            echo "ReleasePlan $(params.releasePlan)"
+            echo "Snapshot $(params.snapshot)"
+    - name: send-message
+      image: quay.io/konflux-ci/appstudio-utils:1610c1fc4cfc9c9053dbefc1146904a4df6659ef@sha256:90ac97b811073cb99a23232c15a08082b586c702b85da6200cf54ef505e3c50c
+      args:
+        - --files
+        - $(params.files[*])
+        - --submodules
+        - $(params.submodules[*])
+        - --user-ids
+        - $(params.user-ids[*])
+        - --group-ids
+        - $(params.group-ids[*])
+      workingDir: /var/workdir/source
+      volumeMounts:
+        - mountPath: /etc/secrets
+          name: webhook-secret
+          readOnly: true
+      env:
+        - name: HOME
+          value: /tekton/home
+        - name: KEY_NAME
+          value: $(params.key-name)
+        - name: MESSAGE
+          value: $(params.message)
+      script: |
+        #!/usr/bin/env bash
+
+        # ---------
+        #  HELPERS
+        # ---------
+
+        function concat {
+          cat <<EOM
+        $1
+        $2
+        EOM
+        }
+
+        # ---------
+        #  DUMPERS
+        # ---------
+
+        function dumpSeparator {
+          echo "-----------------------------------------"
+        }
+
+        function dumpFile {
+          filePath=$1
+
+          cat <<EOM
+        *${filePath}:*
+        \`\`\`
+        $(cat "${filePath}")
+        \`\`\`
+        EOM
+        }
+
+        # dumpSubmodule will dump the git log history as follow
+        # $commitShortSHA $authorName $subject
+        # with some padding to align the lines (author name is truncated after 27 char).
+        # A link to the previous commits is available (tested on github & gitlab).
+        function dumpSubmodule {
+          name=$1
+
+          path=$(git config -f .gitmodules --get submodule."${name}".path)
+          url=$(git config -f .gitmodules --get submodule."${name}".url)
+
+          current_commit=$(git -C "${path}" rev-parse HEAD)
+          previous_commit=$(git diff HEAD~1 "${path}" | grep commit | head -n 1 | awk '{print $3;}')
+          if [ "${previous_commit}" = "" ]; then
+            previous_commit=${current_commit}
+          fi
+
+          commits=None
+          if [ "${previous_commit}" != "${current_commit}" ]; then
+            commits=$(git -C "${path}" log --pretty=format:'%h %<(27,trunc)%an %s' --abbrev-commit "${previous_commit}".."${current_commit}")
+          fi
+
+          cat <<EOM
+        *Submodule ${name} (<${url}/commits/${current_commit}|commits>):*
+        \`\`\`
+        ${commits}
+        \`\`\`
+        EOM
+        }
+
+        # --------------
+        #  ARGS PARSING
+        # --------------
+
+        echo "Parsing $*"
+
+        FILES=()
+        SUBMODULES=()
+        USER_IDS=()
+        GROUP_IDS=()
+
+        while [[ $# -gt 0 ]]; do
+          case $1 in
+          --files)
+            shift
+            while [[ $# -gt 0 ]] && ! [[ "$1" =~ ^--.* ]]; do
+              FILES+=("$1")
+              shift
+            done
+            ;;
+          --submodules)
+            shift
+            while [[ $# -gt 0 ]] && ! [[ "$1" =~ ^--.* ]]; do
+              SUBMODULES+=("$1")
+              shift
+            done
+            ;;
+          --user-ids)
+            shift
+            while [[ $# -gt 0 ]] && ! [[ "$1" =~ ^--.* ]]; do
+              USER_IDS+=("$1")
+              shift
+            done
+            ;;
+          --group-ids)
+            shift
+            while [[ $# -gt 0 ]] && ! [[ "$1" =~ ^--.* ]]; do
+              GROUP_IDS+=("$1")
+              shift
+            done
+            ;;
+          esac
+        done
+
+        # -------------------
+        #  PARAMS VALIDATION
+        # -------------------
+
+        if [ -f "/etc/secrets/$KEY_NAME" ]; then
+          WEBHOOK_URL=$(cat "/etc/secrets/$KEY_NAME")
+        else
+          echo "Secret not defined properly"
+          exit 1
+        fi
+
+        # ------
+        #  DUMP
+        # ------
+
+        slack_message=${MESSAGE}
+
+        # Add user mentions if user-ids are set
+        user_mentions=""
+        for user_id in "${USER_IDS[@]}"; do
+          if [ -n "${user_id}" ]; then
+            user_mentions="${user_mentions}<@${user_id}> "
+          fi
+        done
+
+        # Add group mentions if group-ids are set
+        group_mentions=""
+        for group_id in "${GROUP_IDS[@]}"; do
+          if [ -n "${group_id}" ]; then
+            group_mentions="${group_mentions}<!subteam^${group_id}> "
+          fi
+        done
+
+        # Prepend mentions to message
+        if [ -n "${user_mentions}" ] || [ -n "${group_mentions}" ]; then
+          slack_message="${user_mentions}${group_mentions}${slack_message}"
+        fi
+
+        if [ ${#FILES[@]} -ne 0 ]; then
+          slack_message=$(concat "${slack_message}" "$(dumpSeparator)")
+        fi
+
+        for file in "${FILES[@]}"; do
+          content=$(dumpFile "${file}")
+          slack_message=$(concat "${slack_message}" "${content}")
+        done
+
+        if [ ${#SUBMODULES[@]} -ne 0 ]; then
+          slack_message=$(concat "${slack_message}" "$(dumpSeparator)")
+        fi
+
+        for submodule in "${SUBMODULES[@]}"; do
+          content=$(dumpSubmodule "${submodule}")
+          slack_message=$(concat "${slack_message}" "${content}")
+        done
+
+        data=$(jq --compact-output --null-input --arg message "$slack_message" '{text: $message}')
+
+        curl -X POST -H 'Content-type: application/json' --data "${data}" "$WEBHOOK_URL"
