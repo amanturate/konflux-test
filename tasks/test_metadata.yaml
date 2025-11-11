@@ -1,0 +1,49 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: custom-metadata
+spec:
+  params:
+    - name: SNAPSHOT
+      description: The JSON string of the Snapshot under test
+  steps:
+    - name: test-metadata
+      image: quay.io/konflux-ci/konflux-test:stable
+      workingDir: /workspace
+      env:
+        - name: SNAPSHOT
+          value: $(params.SNAPSHOT)
+      script: |
+        set -e
+        echo $SNAPSHOT
+        # Get PipelineRun annotations
+        # This script is designed to run within a Tekton Task and retrieve annotations
+        # from the current PipelineRun
+
+        # Get the PipelineRun name from the Tekton context
+        # This is automatically available as an environment variable in Tekton tasks
+        PIPELINERUN_NAME="${PIPELINERUN_NAME:-$(context.pipelineRun.name)}"
+
+        if [ -z "$PIPELINERUN_NAME" ]; then
+            echo "Error: PIPELINERUN_NAME is not set"
+            exit 1
+        fi
+
+        echo "Fetching annotations for PipelineRun: $PIPELINERUN_NAME"
+
+        # Get all annotations from the PipelineRun
+        ANNOTATIONS=$(kubectl get pipelinerun "$PIPELINERUN_NAME" -o jsonpath='{.metadata.annotations}')
+
+        if [ -z "$ANNOTATIONS" ] || [ "$ANNOTATIONS" == "{}" ]; then
+            echo "No annotations found on PipelineRun: $PIPELINERUN_NAME"
+            exit 0
+        fi
+
+        # Pretty print the annotations
+        echo "Annotations:"
+        echo "$ANNOTATIONS" | jq .
+
+        # Optionally, get specific annotation values
+        # Example: Get a specific annotation by key
+        # SPECIFIC_ANNOTATION=$(kubectl get pipelinerun "$PIPELINERUN_NAME" -o jsonpath='{.metadata.annotations.your-annotation-key}')
+        # echo "Specific annotation value: $SPECIFIC_ANNOTATION"
