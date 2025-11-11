@@ -1,0 +1,38 @@
+kind: Pipeline
+apiVersion: tekton.dev/v1
+metadata:
+  name: example-pipeline
+spec:
+  params:
+    - description: 'Snapshot of the application'
+      name: SNAPSHOT
+      default: '{"components": [{"name":"test-app", "containerImage": "quay.io/example/repo:latest"}]}'
+      type: string
+  tasks:
+    - name: test-metadata
+      params:
+        - name: SNAPSHOT
+          value: $(params.SNAPSHOT)
+      taskRef:
+        resolver: git
+        params:
+          - name: url
+            value: https://github.com/dirgim/integration-examples
+          - name: revision
+            value: test-metadata
+          - name: pathInRepo
+            value: tasks/test_metadata.yaml
+    - name: test-metadata-new
+      params:
+        - name: SNAPSHOT
+          value: $(params.SNAPSHOT)
+      taskRef:
+        resolver: git
+        params:
+          - name: url
+            value: https://github.com/amanturate/konflux-test
+          - name: revision
+            value: main
+          - name: pathInRepo
+            value: tasks/test_metadata.yaml
+    
