@@ -13,37 +13,35 @@ spec:
       env:
         - name: SNAPSHOT
           value: $(params.SNAPSHOT)
+        - name: COMPONENT_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.labels['appstudio.openshift.io/component']
       script: |
         set -e
-        echo $SNAPSHOT
-        # Get PipelineRun annotations
-        # This script is designed to run within a Tekton Task and retrieve annotations
-        # from the current PipelineRun
+        dnf -y install jq
+        snapshotComponents=$(jq -c '.components[]' <<< "${SNAPSHOT}")
 
-        # Get the PipelineRun name from the Tekton context
-        # This is automatically available as an environment variable in Tekton tasks
-        PIPELINERUN_NAME="${PIPELINERUN_NAME:-$(context.pipelineRun.name)}"
+        echo -e "Example test task for the Snapshot:\n ${SNAPSHOT}"
+        # Run custom tests for the given Snapshot here
+        while read componentEntry
+        do
+          # Variables
+          componentName=$(echo "${componentEntry}" | jq -r '.name')
+          componentUrl=$(echo "${componentEntry}" | jq -r '.source.git.url')
+          componentUrlWithoutSuffix=$(echo $componentUrl | sed 's/\.git$//')
+          componentSha=$(echo "${componentEntry}" | jq -r '.source.git.revision')
 
-        if [ -z "$PIPELINERUN_NAME" ]; then
-            echo "Error: PIPELINERUN_NAME is not set"
-            exit 1
-        fi
+          echo "Print the infomation for component ${componentName} included in snapshot, more test can be added to inspect git source and containerImage in component:"
+          echo "${componentName}"
+          echo "${componentUrl}"
+          echo "${componentUrlWithoutSuffix}"
+          echo "${componentSha}"
+        done < <(echo "$snapshotComponents")
 
-        echo "Fetching annotations for PipelineRun: $PIPELINERUN_NAME"
+        # Extract the component container image from the SNAPSHOT JSON data
+        COMPONENT_CONTAINER_IMAGE=$(jq -r --arg component_name "${COMPONENT_NAME}" '.components[] | select(.name == $component_name) | .containerImage' <<< "${SNAPSHOT}")
 
-        # Get all annotations from the PipelineRun
-        ANNOTATIONS=$(kubectl get pipelinerun "$PIPELINERUN_NAME" -o jsonpath='{.metadata.annotations}')
-
-        if [ -z "$ANNOTATIONS" ] || [ "$ANNOTATIONS" == "{}" ]; then
-            echo "No annotations found on PipelineRun: $PIPELINERUN_NAME"
-            exit 0
-        fi
-
-        # Pretty print the annotations
-        echo "Annotations:"
-        echo "$ANNOTATIONS" | jq .
-
-        # Optionally, get specific annotation values
-        # Example: Get a specific annotation by key
-        # SPECIFIC_ANNOTATION=$(kubectl get pipelinerun "$PIPELINERUN_NAME" -o jsonpath='{.metadata.annotations.your-annotation-key}')
-        # echo "Specific annotation value: $SPECIFIC_ANNOTATION"
+        # Log the extracted variable
+        echo "  COMPONENT_CONTAINER_IMAGE: ${COMPONENT_CONTAINER_IMAGE}"
+        RESULT="SUCCESS"
