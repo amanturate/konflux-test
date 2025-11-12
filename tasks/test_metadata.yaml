@@ -35,6 +35,10 @@ spec:
         - name: component_name
           valueFrom:
             fieldRef:
+              fieldPath: metadata.labels['appstudio.openshift.io/application']
+        - name: snapshot_name
+          valueFrom:
+            fieldRef:
               fieldPath: metadata.labels['appstudio.openshift.io/snapshot']
         - name: build_type
           valueFrom:
