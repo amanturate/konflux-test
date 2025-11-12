@@ -26,7 +26,7 @@ spec:
       description: Build version of application
       type: string
   steps:
-    - name: capture_details
+    - name: capturedetails
       image: quay.io/konflux-ci/konflux-test:stable
       workingDir: /workspace
       env:
