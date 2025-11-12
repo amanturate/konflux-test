@@ -54,8 +54,8 @@ spec:
 
         image_url=$(jq -r --arg component_name "$component_name" '.components[] | select(.name == $component_name) | .containerImage' <<< "$SNAPSHOT")
 
-        version=$(skopeo inspect --format '{{.Labels.version}}' "$image_url")
-        build_version=$(skopeo inspect --format '{{.Labels.release}}' "$image_url")
+        version=$(skopeo inspect --format '{{.Labels.version}}' "docker://$image_url")
+        build_version=$(skopeo inspect --format '{{.Labels.release}}' "docker://$image_url")
 
         # Log the extracted variable
         echo "  component_name: $component_name"
