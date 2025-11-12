@@ -6,43 +6,58 @@ spec:
   params:
     - name: SNAPSHOT
       description: The JSON string of the Snapshot under test
+  results:
+    - name: component_name
+      description: Name of the component
+      type: string
+    - name: build_type
+      description: It specifies whether its release build / development build
+      type: string
+    - name: snapshot_name
+      description: It specifies the snapshot name
+      type: string
+    - name: image_url
+      description: Path of quay repo where image is pushed
+      type: string
+    - name: version
+      description: Version of application
+      type: string
+    - name: build_version
+      description: Build version of application
+      type: string
   steps:
-    - name: test-metadata
+    - name: get_metadata
       image: quay.io/konflux-ci/konflux-test:stable
       workingDir: /workspace
       env:
         - name: SNAPSHOT
           value: $(params.SNAPSHOT)
-        - name: COMPONENT_NAME
+        - name: component_name
           valueFrom:
             fieldRef:
               fieldPath: metadata.labels['appstudio.openshift.io/snapshot']
+        - name: build_type
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.labels['custom.appstudio.openshift.io/build_type']
       script: |
         set -e
         dnf -y install jq
-        snapshotComponents=$(jq -c '.components[]' <<< "${SNAPSHOT}")
-
-        echo -e "Example test task for the Snapshot:\n ${SNAPSHOT}"
-        # Run custom tests for the given Snapshot here
-        while read componentEntry
-        do
-          # Variables
-          componentName=$(echo "${componentEntry}" | jq -r '.name')
-          componentUrl=$(echo "${componentEntry}" | jq -r '.source.git.url')
-          componentUrlWithoutSuffix=$(echo $componentUrl | sed 's/\.git$//')
-          componentSha=$(echo "${componentEntry}" | jq -r '.source.git.revision')
-
-          echo "Print the infomation for component ${componentName} included in snapshot, more test can be added to inspect git source and containerImage in component:"
-          echo "${componentName}"
-          echo "${componentUrl}"
-          echo "${componentUrlWithoutSuffix}"
-          echo "${componentSha}"
-        done < <(echo "$snapshotComponents")
 
         # Extract the component container image from the SNAPSHOT JSON data
-        echo $COMPONENT_NAME
-        COMPONENT_CONTAINER_IMAGE=$(jq -r --arg component_name "${COMPONENT_NAME}" '.components[] | select(.name == $component_name) | .containerImage' <<< "${SNAPSHOT}")
+
+        snapshot_name=$(jq -r --arg component_name "${component_name}" '.components[] | select(.name == $component_name) | .name' <<< "${SNAPSHOT}")
+
+        image_url=$(jq -r --arg component_name "${component_name}" '.components[] | select(.name == $component_name) | .containerImage' <<< "${SNAPSHOT}")
+
+        version=$(podman inspect --format '{{.Config.Labels.version}}' "$image_url")
+        build_version=$(podman inspect --format '{{.Config.Labels.build_version}}' "$image_url")
 
         # Log the extracted variable
-        echo "  COMPONENT_CONTAINER_IMAGE: ${COMPONENT_CONTAINER_IMAGE}"
+        echo "  component_name: ${component_name}"
+        echo "  snapshot_name: ${snapshot_name}"
+        echo "  image_url: ${image_url}"
+        echo "  build_type: ${build_type}"
+        echo "  version: ${version}"
+        echo "  build_version: ${build_version}"
         RESULT="SUCCESS"
