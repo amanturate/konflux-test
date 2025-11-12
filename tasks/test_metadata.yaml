@@ -16,7 +16,7 @@ spec:
         - name: COMPONENT_NAME
           valueFrom:
             fieldRef:
-              fieldPath: metadata.labels['appstudio.openshift.io/component']
+              fieldPath: metadata.labels['appstudio.openshift.io/snapshot']
       script: |
         set -e
         dnf -y install jq
@@ -40,6 +40,7 @@ spec:
         done < <(echo "$snapshotComponents")
 
         # Extract the component container image from the SNAPSHOT JSON data
+        echo $COMPONENT_NAME
         COMPONENT_CONTAINER_IMAGE=$(jq -r --arg component_name "${COMPONENT_NAME}" '.components[] | select(.name == $component_name) | .containerImage' <<< "${SNAPSHOT}")
 
         # Log the extracted variable
