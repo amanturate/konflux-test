@@ -111,7 +111,7 @@ spec:
           version: $version,
           build_version: $build_version}'
 
-        data_populated=$(jq --compact-output --null-input --arg component_name "$COMPONENT_NAME" --arg build_type "$BUILD_TYPE" --arg snapshot_name "$SNAPSHOT_NAME" --arg image_url "$IMAGE_URL" --arg version "$VERSION" --arg build_version "$BUILD_VERSION" '$data')
+        data_populated=$(jq --compact-output --null-input --arg component_name "$COMPONENT_NAME" --arg build_type "$BUILD_TYPE" --arg snapshot_name "$SNAPSHOT_NAME" --arg image_url "$IMAGE_URL" --arg version "$VERSION" --arg build_version "$BUILD_VERSION" "$data")
         echo "data_populated: ${data_populated}"
 
         curl -X POST -H 'Content-type: application/json' --data "${data_populated}" "$WEBHOOK_URL"
