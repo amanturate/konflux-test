@@ -23,21 +23,27 @@ spec:
     - name: component_name
       description: Name of the component
       type: string
+      default: ""
     - name: build_type
       description: It specifies whether its release build / development build
       type: string
+      default: ""
     - name: snapshot_name
       description: It specifies the snapshot name
       type: string
+      default: ""
     - name: image_url
       description: Path of quay repo where image is pushed
       type: string
+      default: ""
     - name: version
       description: Version of application
       type: string
+      default: ""
     - name: build_version
       description: Build version of application
       type: string
+      default: ""
   volumes:
     - name: webhook-secret
       secret:
