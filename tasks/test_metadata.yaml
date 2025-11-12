@@ -47,18 +47,17 @@ spec:
         # Extract the component container image from the SNAPSHOT JSON data
         echo $SNAPSHOT
         echo $component_name
-        echo $build_type
 
-        image_url=$(jq -r --arg component_name "${component_name}" '.components[] | select(.name == $component_name) | .containerImage' <<< "${SNAPSHOT}")
+        image_url=$(jq -r --arg component_name "$component_name" '.components[] | select(.name == $component_name) | .containerImage' <<< "$SNAPSHOT")
 
         version=$(skopeo inspect --format '{{.Labels.version}}' "$image_url")
         build_version=$(skopeo inspect --format '{{.Labels.release}}' "$image_url")
 
         # Log the extracted variable
-        echo "  component_name: ${component_name}"
-        echo "  snapshot_name: ${snapshot_name}"
-        echo "  image_url: ${image_url}"
-        echo "  build_type: ${build_type}"
-        echo "  version: ${version}"
-        echo "  build_version: ${build_version}"
+        echo "  component_name: $component_name"
+        echo "  snapshot_name: $snapshot_name"
+        echo "  image_url: $image_url"
+        echo "  build_type: $build_type"
+        echo "  version: $version"
+        echo "  build_version: $build_version"
         RESULT="SUCCESS"
