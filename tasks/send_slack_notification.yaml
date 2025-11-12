@@ -1,0 +1,111 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  labels:
+    app.kubernetes.io/version: "0.1"
+  annotations:
+    tekton.dev/pipelines.minVersion: "0.12.1"
+    tekton.dev/tags: "konflux"
+  name: custom-slack-webhook-notification
+spec:
+  description: >-
+    Sends message to slack using incoming webhook
+  params:
+    - name: message
+      description: Message to be sent
+    - name: secret-name
+      description: |
+        Secret with at least one key where value is webhook URL for slack.
+        eg. oc create secret generic my-secret --from-literal team1=https://hooks.slack.com/services/XXX/XXXXXX --from-literal team2=https://hooks.slack.com/services/YYY/YYYYYY
+      default: slack-webhook-notification-secret
+    - name: key-name
+      description: Key in the key in secret which contains webhook URL for slack.
+    - name: component_name
+      description: Name of the component
+      type: string
+    - name: build_type
+      description: It specifies whether its release build / development build
+      type: string
+    - name: snapshot_name
+      description: It specifies the snapshot name
+      type: string
+    - name: image_url
+      description: Path of quay repo where image is pushed
+      type: string
+    - name: version
+      description: Version of application
+      type: string
+    - name: build_version
+      description: Build version of application
+      type: string
+  volumes:
+    - name: webhook-secret
+      secret:
+        secretName: $(params.secret-name)
+        optional: true
+  steps:
+    - name: send-message
+      image: quay.io/konflux-ci/appstudio-utils:1610c1fc4cfc9c9053dbefc1146904a4df6659ef@sha256:90ac97b811073cb99a23232c15a08082b586c702b85da6200cf54ef505e3c50c
+      # per https://kubernetes.io/docs/concepts/containers/images/#imagepullpolicy-defaulting
+      # the cluster will set imagePullPolicy to IfNotPresent
+      volumeMounts:
+        - name: webhook-secret
+          mountPath: "/etc/secrets"
+          readOnly: true
+      env:
+        - name: HOME
+          value: /tekton/home
+        - name: KEY_NAME
+          value: $(params.key-name)
+        - name: MESSAGE
+          value: $(params.message)
+        - name: COMPONENT_NAME
+          value: $(params.component_name)
+        - name: BUILD_TYPE
+          value: $(params.build_type)
+        - name: SNAPSHOT_NAME
+          value: $(params.snapshot_name)
+        - name: IMAGE_URL
+          value: $(params.image_url)
+        - name: VERSION
+          value: $(params.version)
+        - name: BUILD_VERSION
+          value: $(params.build_version)
+      script: |
+        #!/usr/bin/env bash
+        #some components used from https://github.com/konflux-ci/build-definitions/blob/main/task/slack-webhook-notification/0.1/slack-webhook-notification.yaml
+
+        set -e
+        # ---------
+        #  HELPERS
+        # ---------
+
+        function concat {
+            cat << EOM
+        $1
+        $2
+        EOM
+        }
+
+        # -------------------
+        #  PARAMS VALIDATION
+        # -------------------
+
+        if [ -f "/etc/secrets/$KEY_NAME" ]; then
+          WEBHOOK_URL=$(cat "/etc/secrets/$KEY_NAME")
+        else
+          echo "Secret not defined properly"
+          exit 1
+        fi
+
+        data='{component_name: $component_name,
+          build_type: $build_type,
+          snapshot_name: $snapshot_name,
+          image_url: $image_url,
+          version: $version,
+          build_version: $build_version}'
+
+        data_populated=$(jq --compact-output --null-input --arg component_name "$COMPONENT_NAME" --arg build_type "$BUILD_TYPE" --arg snapshot_name "$SNAPSHOT_NAME" --arg image_url "$IMAGE_URL" --arg version "$VERSION" --arg build_version "$BUILD_VERSION" '$data')
+        echo "data_populated: ${data_populated}"
+
+        curl -X POST -H 'Content-type: application/json' --data "${data_populated}" "$WEBHOOK_URL"

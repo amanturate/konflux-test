@@ -1,28 +1,21 @@
 kind: Pipeline
 apiVersion: tekton.dev/v1
 metadata:
-  name: example-pipeline
+  name: slack-notify-pipeline
 spec:
   params:
     - description: 'Snapshot of the application'
       name: SNAPSHOT
       default: '{"components": [{"name":"test-app", "containerImage": "quay.io/example/repo:latest"}]}'
       type: string
+    - name: secret-name
+      description: 'Secret name containing the Slack webhook URL'
+      type: string
+    - name: key-name
+      description: 'Key name containing the Slack webhook URL'
+      type: string
   tasks:
-    - name: test-metadata
-      params:
-        - name: SNAPSHOT
-          value: $(params.SNAPSHOT)
-      taskRef:
-        resolver: git
-        params:
-          - name: url
-            value: https://github.com/dirgim/integration-examples
-          - name: revision
-            value: test-metadata
-          - name: pathInRepo
-            value: tasks/test_metadata.yaml
-    - name: test-metadata-new
+    - name: capture-metadata
       params:
         - name: SNAPSHOT
           value: $(params.SNAPSHOT)
@@ -34,5 +27,33 @@ spec:
           - name: revision
             value: main
           - name: pathInRepo
-            value: tasks/test_metadata.yaml
-    
+            value: tasks/capture_metadata.yaml
+    - name: send-slack-notification
+      params:
+        - name: message
+          value: "test message"
+        - name: secret-name
+          value: $(params.secret-name)
+        - name: key-name
+          value: $(params.key-name)
+        - name: COMPONENT_NAME
+          value: $(tasks.capture-metadata.results.COMPONENT_NAME)
+        - name: BUILD_TYPE
+          value: $(tasks.capture-metadata.results.BUILD_TYPE)
+        - name: SNAPSHOT_NAME
+          value: $(tasks.capture-metadata.results.SNAPSHOT_NAME)
+        - name: IMAGE_URL
+          value: $(tasks.capture-metadata.results.IMAGE_URL)
+        - name: VERSION
+          value: $(tasks.capture-metadata.results.VERSION)
+        - name: BUILD_VERSION
+          value: $(tasks.capture-metadata.results.BUILD_VERSION)
+      taskRef:
+        resolver: git
+        params:
+          - name: url
+            value: https://github.com/amanturate/konflux-test
+          - name: revision
+            value: main
+          - name: pathInRepo
+            value: tasks/send_slack_notification.yaml
