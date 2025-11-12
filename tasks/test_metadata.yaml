@@ -26,7 +26,7 @@ spec:
       description: Build version of application
       type: string
   steps:
-    - name: get_metadata
+    - name: capture_details
       image: quay.io/konflux-ci/konflux-test:stable
       workingDir: /workspace
       env:
@@ -50,8 +50,8 @@ spec:
 
         image_url=$(jq -r --arg component_name "${component_name}" '.components[] | select(.name == $component_name) | .containerImage' <<< "${SNAPSHOT}")
 
-        version=$(podman inspect --format '{{.Config.Labels.version}}' "$image_url")
-        build_version=$(podman inspect --format '{{.Config.Labels.build_version}}' "$image_url")
+        version=$(skopeo inspect --format '{{.Labels.version}}' "$image_url")
+        build_version=$(skopeo inspect --format '{{.Labels.release}}' "$image_url")
 
         # Log the extracted variable
         echo "  component_name: ${component_name}"
