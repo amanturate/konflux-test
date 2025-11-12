@@ -104,12 +104,20 @@ spec:
           exit 1
         fi
 
-        data='{component_name: "$component_name",
-          build_type: "$build_type",
-          snapshot_name: "$snapshot_name",
-          image_url: "$image_url",
-          version: "$version",
-          build_version: "$build_version"}'
+        echo "$COMPONENT_NAME"
+        echo "$BUILD_TYPE"
+        echo "$SNAPSHOT_NAME"
+        echo "$IMAGE_URL"
+        echo "$VERSION"
+        echo "$BUILD_VERSION"
+        echo $COMPONENT_NAME
+
+        data='{component_name: $component_name,
+          build_type: $build_type,
+          snapshot_name: $snapshot_name,
+          image_url: $image_url,
+          version: $version,
+          build_version: $build_version}'
 
         data_populated=$(jq --compact-output --null-input --arg component_name "$COMPONENT_NAME" --arg build_type "$BUILD_TYPE" --arg snapshot_name "$SNAPSHOT_NAME" --arg image_url "$IMAGE_URL" --arg version "$VERSION" --arg build_version "$BUILD_VERSION" "$data")
         echo "data_populated: ${data_populated}"
