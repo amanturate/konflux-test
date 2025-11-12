@@ -64,4 +64,11 @@ spec:
         echo "  build_type: $build_type"
         echo "  version: $version"
         echo "  build_version: $build_version"
+
+        echo -n "${component_name}" | tee $(results.component_name.path)
+        echo -n "${snapshot_name}" | tee $(results.snapshot_name.path)
+        echo -n "${build_type}" | tee $(results.build_type.path)
+        echo -n "${image_url}" | tee $(results.image_url.path)
+        echo -n "${version}" | tee $(results.version.path)
+        echo -n "${build_version}" | tee $(results.build_version.path)
         RESULT="SUCCESS"
