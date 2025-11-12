@@ -36,17 +36,17 @@ spec:
           value: $(params.secret-name)
         - name: key-name
           value: $(params.key-name)
-        - name: COMPONENT_NAME
+        - name: component_name
           value: $(tasks.capture-metadata.results.component_name)
-        - name: BUILD_TYPE
+        - name: build_type
           value: $(tasks.capture-metadata.results.build_type)
-        - name: SNAPSHOT_NAME
+        - name: snapshot_name
           value: $(tasks.capture-metadata.results.snapshot_name)
-        - name: IMAGE_URL
+        - name: image_url
           value: $(tasks.capture-metadata.results.image_url)
-        - name: VERSION
+        - name: version
           value: $(tasks.capture-metadata.results.version)
-        - name: BUILD_VERSION
+        - name: build_version
           value: $(tasks.capture-metadata.results.build_version)
       taskRef:
         resolver: git
