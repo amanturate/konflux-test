@@ -50,6 +50,7 @@ spec:
 
         # Extract the component container image from the SNAPSHOT JSON data
         echo $SNAPSHOT
+        echo $(context.pipelineRun.name)
 
         image_url=$(jq -r --arg component_name "$component_name" '.components[] | select(.name == $component_name) | .containerImage' <<< "$SNAPSHOT")
 
