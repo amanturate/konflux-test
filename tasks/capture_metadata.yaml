@@ -35,7 +35,7 @@ spec:
         - name: component_name
           valueFrom:
             fieldRef:
-              fieldPath: metadata.labels['appstudio.openshift.io/application']
+              fieldPath: metadata.labels['appstudio.openshift.io/component']
         - name: snapshot_name
           valueFrom:
             fieldRef:
@@ -50,7 +50,6 @@ spec:
 
         # Extract the component container image from the SNAPSHOT JSON data
         echo $SNAPSHOT
-        echo $(context.pipelineRun.name)
 
         image_url=$(jq -r --arg component_name "$component_name" '.components[] | select(.name == $component_name) | .containerImage' <<< "$SNAPSHOT")
 
