@@ -75,5 +75,5 @@ spec:
         echo -n "${build_type}" | tee $(results.build_type.path)
         echo -n "${image_url}" | tee $(results.image_url.path)
         echo -n "${version}" | tee $(results.version.path)
-        echo -n "${build_version}" | tee $(results.build_version.path)
+        echo -n "${app_version}" | tee $(results.build_version.path)
         RESULT="SUCCESS"
