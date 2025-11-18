@@ -1,0 +1,67 @@
+kind: Pipeline
+apiVersion: tekton.dev/v1
+metadata:
+  name: slack-notify-pipeline
+spec:
+  params:
+    - description: 'Snapshot of the application'
+      name: snapshot
+      default: '{"components": [{"name":"test-app", "containerImage": "quay.io/example/repo:latest"}]}'
+      type: string
+    - name: secret-name
+      description: 'Secret name containing the Slack webhook URL'
+      type: string
+    - name: key-name
+      description: 'Key name containing the Slack webhook URL'
+      type: string
+    - name: release 
+      type: string
+    - name: releasePlan 
+      type: string
+  tasks:
+    - name: capture-metadata
+      params:
+        - name: snapshot
+          value: $(params.snapshot)
+        - name: release
+          value: $(params.release)
+        - name: releasePlan
+          value: $(params.releasePlan)
+      taskRef:
+        resolver: git
+        params:
+          - name: url
+            value: https://github.com/amanturate/konflux-test
+          - name: revision
+            value: main
+          - name: pathInRepo
+            value: tasks/capture_metadata_release.yaml
+    - name: send-slack-notification
+      params:
+        - name: message
+          value: "test message"
+        - name: secret-name
+          value: $(params.secret-name)
+        - name: key-name
+          value: $(params.key-name)
+        - name: component_name
+          value: $(tasks.capture-metadata.results.component_name)
+        - name: build_type
+          value: $(tasks.capture-metadata.results.build_type)
+        - name: snapshot_name
+          value: $(tasks.capture-metadata.results.snapshot_name)
+        - name: image_url
+          value: $(tasks.capture-metadata.results.image_url)
+        - name: version
+          value: $(tasks.capture-metadata.results.version)
+        - name: build_version
+          value: $(tasks.capture-metadata.results.build_version)
+      taskRef:
+        resolver: git
+        params:
+          - name: url
+            value: https://github.com/amanturate/konflux-test
+          - name: revision
+            value: main
+          - name: pathInRepo
+            value: tasks/send_slack_notification.yaml

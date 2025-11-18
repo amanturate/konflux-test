@@ -1,0 +1,36 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: custom-metadata
+spec:
+  params:
+    - name: release 
+      type: string
+    - name: releasePlan 
+      type: string
+    - name: snapshot 
+      type: string
+  steps:
+    - name: capturedetails
+      image: quay.io/konflux-ci/konflux-test:stable
+      workingDir: /workspace
+      env:
+        - name: SNAPSHOT
+          value: $(params.snapshot)
+      script: |
+        set -e
+        dnf -y install jq
+
+        # Extract the component container image from the SNAPSHOT JSON data
+        echo $SNAPSHOT
+        echo "Release $(params.release)"
+        echo "ReleasePlan $(params.releasePlan)"
+        echo "Snapshot $(params.snapshot)"
+
+        # echo -n "${component_name}" | tee $(results.component_name.path)
+        # echo -n "${snapshot_name}" | tee $(results.snapshot_name.path)
+        # echo -n "${build_type}" | tee $(results.build_type.path)
+        # echo -n "${image_url}" | tee $(results.image_url.path)
+        # echo -n "${version}" | tee $(results.version.path)
+        # echo -n "${app_version}" | tee $(results.build_version.path)
+        RESULT="SUCCESS"
