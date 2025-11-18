@@ -44,17 +44,12 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.labels['custom.appstudio.openshift.io/build_type']
-        - name: app_version
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.labels['custom.appstudio.openshift.io/appversion']
       script: |
         set -e
         dnf -y install jq
 
         # Extract the component container image from the SNAPSHOT JSON data
         echo $SNAPSHOT
-        echo $app_version
 
         image_url=$(jq -r --arg component_name "$component_name" '.components[] | select(.name == $component_name) | .containerImage' <<< "$SNAPSHOT")
 
@@ -74,5 +69,5 @@ spec:
         echo -n "${build_type}" | tee $(results.build_type.path)
         echo -n "${image_url}" | tee $(results.image_url.path)
         echo -n "${version}" | tee $(results.version.path)
-        echo -n "${app_version}" | tee $(results.build_version.path)
+        echo -n "${build_version}" | tee $(results.build_version.path)
         RESULT="SUCCESS"
