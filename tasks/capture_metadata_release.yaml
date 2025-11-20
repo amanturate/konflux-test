@@ -14,15 +14,11 @@ spec:
     - name: capturedetails
       image: quay.io/konflux-ci/konflux-test:stable
       workingDir: /workspace
-      env:
-        - name: SNAPSHOT
-          value: $(params.snapshot)
       script: |
         set -e
         dnf -y install jq
 
         # Extract the component container image from the SNAPSHOT JSON data
-        echo $SNAPSHOT
         echo "Release $(params.release)"
         echo "ReleasePlan $(params.releasePlan)"
         echo "Snapshot $(params.snapshot)"
