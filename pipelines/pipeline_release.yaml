@@ -21,7 +21,7 @@ spec:
     - name: echo-resources
       taskSpec:
        steps:
-         - name: echo resources
+         - name: echoresources
            image: ubuntu:latest
            script: |
              #!/usr/bin/env sh
