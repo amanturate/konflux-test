@@ -1,7 +1,7 @@
 apiVersion: tekton.dev/v1
 kind: Task
 metadata:
-  name: custom-metadata
+  name: custom-metadata-release
 spec:
   params:
     - name: release 
@@ -22,11 +22,4 @@ spec:
         echo "Release $(params.release)"
         echo "ReleasePlan $(params.releasePlan)"
         echo "Snapshot $(params.snapshot)"
-
-        # echo -n "${component_name}" | tee $(results.component_name.path)
-        # echo -n "${snapshot_name}" | tee $(results.snapshot_name.path)
-        # echo -n "${build_type}" | tee $(results.build_type.path)
-        # echo -n "${image_url}" | tee $(results.image_url.path)
-        # echo -n "${version}" | tee $(results.version.path)
-        # echo -n "${app_version}" | tee $(results.build_version.path)
         RESULT="SUCCESS"

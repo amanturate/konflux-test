@@ -6,7 +6,6 @@ spec:
   params:
     - description: 'Snapshot of the application'
       name: snapshot
-      default: '{"components": [{"name":"test-app", "containerImage": "quay.io/example/repo:latest"}]}'
       type: string
     - name: secret-name
       description: 'Secret name containing the Slack webhook URL'
@@ -19,6 +18,16 @@ spec:
     - name: releasePlan 
       type: string
   tasks:
+    - name: echo-resources
+      taskSpec:
+       steps:
+         - name: echo resources
+           image: ubuntu:latest
+           script: |
+             #!/usr/bin/env sh
+             echo "Release $(params.release)"
+             echo "ReleasePlan $(params.releasePlan)"
+             echo "Snapshot $(params.snapshot)"
     - name: capture-metadata
       params:
         - name: snapshot
