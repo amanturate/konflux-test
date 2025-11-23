@@ -28,6 +28,8 @@ spec:
              echo "Release $(params.release)"
              echo "ReleasePlan $(params.releasePlan)"
              echo "Snapshot $(params.snapshot)"
+             outp=$(oc get release ${params.release} -o yaml)
+             echo "${outp}"
     - name: capture-metadata
       params:
         - name: snapshot
