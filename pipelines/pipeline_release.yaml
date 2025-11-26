@@ -16,8 +16,10 @@ spec:
       type: string
     - name: releasePlanAdmission
       type: string
+      default: ""
     - name: releaseServiceConfig
       type: string
+      default: ""
     - name: snapshot
       type: string
     - name: ociStorage
@@ -51,10 +53,8 @@ spec:
           value: $(params.releasePlan)
         - name: releasePlanAdmission
           value: $(params.releasePlanAdmission)
-          default: ""
         - name: releaseServiceConfig
           value: $(params.releaseServiceConfig)
-          default: ""
         - name: snapshot
           value: $(params.snapshot)
         - name: subdirectory
