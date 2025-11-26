@@ -64,9 +64,9 @@ spec:
         - name: dataDir
           value: $(params.dataDir)
         - name: taskGitUrl
-          value: $(params.taskGitUrl)
+          value: https://github.com/konflux-ci/release-service-catalog.git
         - name: taskGitRevision
-          value: $(params.taskGitRevision)
+          value: production
     - name: print-catalog-urls
       taskRef:
         resolver: "git"
