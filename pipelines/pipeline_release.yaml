@@ -51,8 +51,10 @@ spec:
           value: $(params.releasePlan)
         - name: releasePlanAdmission
           value: $(params.releasePlanAdmission)
+          default: ""
         - name: releaseServiceConfig
           value: $(params.releaseServiceConfig)
+          default: ""
         - name: snapshot
           value: $(params.snapshot)
         - name: subdirectory
