@@ -30,7 +30,7 @@ spec:
       default: https://github.com/konflux-ci/release-service-catalog.git
     - name: taskGitRevision
       type: string
-      default: main
+      default: production
     - name: dataDir
       type: string
       default: "/var/workdir/release"
