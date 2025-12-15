@@ -6,20 +6,76 @@ spec:
   params:
     - name: release 
       type: string
-    - name: releasePlan 
+  results:
+    - name: AppName
       type: string
-    - name: snapshot 
+    - name: ReleaseStatus
+      type: string
+    - name: CatalogURL
+      type: string
+    - name: AppVersion
+      type: string
+    - name: AppRelease
       type: string
   steps:
     - name: capturedetails
-      image: quay.io/konflux-ci/konflux-test:stable
+      image: quay.io/konflux-ci/release-service-utils:02a8ddcd16113371a255fd1ef0a196399d300162
       workingDir: /workspace
       script: |
-        set -e
-        dnf -y install jq
+        #!/usr/bin/env bash
+            set -ex
+            
+            IFS='/' read -r RELEASE_NAMESPACE RELEASE_NAME <<< "$(params.release)"
+            RELEASE=$(kubectl get release "$RELEASE_NAME" -n "$RELEASE_NAMESPACE" -o json)
+            echo "$RELEASE"
+            RELEASECONDITIONS=$(kubectl get release "$RELEASE_NAME" -n "$RELEASE_NAMESPACE" \
+              -o jsonpath='{.status.conditions}' | jq '.[] | select(.type == "ManagedPipelineProcessed")')
 
-        # Extract the component container image from the SNAPSHOT JSON data
-        echo "Release $(params.release)"
-        echo "ReleasePlan $(params.releasePlan)"
-        echo "Snapshot $(params.snapshot)"
-        RESULT="SUCCESS"
+            RELEASESTATUS=$(jq -r '.reason' <<< "$RELEASECONDITIONS")
+            if [[ "$RELEASESTATUS" == *"Failed"* ]]; then
+              relStatus="Failed"
+            else
+              relStatus="Succeeded"
+            fi
+            echo "=== Catalog URLs ==="
+            catalog_data=$(jq -r '.status.artifacts.catalog_urls[]? | "\(.name): \(.url)"' <<< "$RELEASE")
+            if [[ -n "$catalog_data" ]]; then
+              IFS=':' read -r CATALOG_NAME CATALOG_URL <<< "$catalog_data"
+
+              # --- Verification (Optional) ---
+              echo "Successfully captured the first catalog entry:"
+              echo "Name: $CATALOG_NAME"
+              echo "URL:  $CATALOG_URL"
+            else
+              echo "No catalog data found"
+            fi
+            
+            # Initialize variables to ensure they are clean
+            APP_VERSION=""
+            APP_RELEASE=""
+
+            # --- 1. Run the jq command and pipe the output to a while loop ---
+            while IFS='=' read -r KEY VALUE; do
+                case "$KEY" in
+                    version)
+                        APP_VERSION="$VALUE"
+                        ;;
+                    release)
+                        APP_RELEASE="$VALUE"
+                        ;;
+                esac
+            done < <(
+                jq -r --arg app "$CATALOG_NAME" '
+                    .status.artifacts.filtered_snapshot | fromjson |
+                    select(.application == $app) |
+                    .components[] |
+                    .metadata.labels[] |
+                    select(.name == "version" or .name == "release") |
+                    "\(.name)=\(.value)"
+                ' <<< "$RELEASE"
+            )
+            echo -n "$relStatus" > "$(results.ReleaseStatus.path)"
+            echo -n "$CATALOG_NAME" > "$(results.AppName.path)"
+            echo -n "$APP_VERSION" > "$(results.AppVersion.path)"
+            echo -n "$APP_RELEASE" > "$(results.AppRelease.path)"
+            echo -n "$CATALOG_URL" > "$(results.CatalogURL.path)"
