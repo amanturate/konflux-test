@@ -39,6 +39,17 @@ spec:
             value: production
           - name: pathInRepo
             value: hub/kubernetes-actions/kubernetes-actions.yaml
+      results:
+        - name: AppName
+          type: string
+        - name: ReleaseStatus
+          type: string
+        - name: CatalogURL
+          type: string
+        - name: AppVersion
+          type: string
+        - name: AppRelease
+          type: string
       params:
         - name: image
           value: quay.io/konflux-ci/release-service-utils:02a8ddcd16113371a255fd1ef0a196399d300162
@@ -52,14 +63,57 @@ spec:
             IFS='/' read -r RELEASE_NAMESPACE RELEASE_NAME <<< "$(params.release)"
             RELEASE=$(kubectl get release "$RELEASE_NAME" -n "$RELEASE_NAMESPACE" -o json)
             echo "$RELEASE"
+            RELEASECONDITIONS=$(kubectl get release "$RELEASE_NAME" -n "$RELEASE_NAMESPACE" \
+              -o jsonpath='{.status.conditions}' | jq '.[] | select(.type == "ManagedPipelineProcessed")')
+
+            RELEASESTATUS=$(jq -r '.reason' <<< "$RELEASECONDITIONS")
+            if [[ "$RELEASESTATUS" == *"Failed"* ]]; then
+              relStatus="Failed"
+            else
+              relStatus="Succeeded"
+            fi
             echo "=== Catalog URLs ==="
-            jq -r '.status.artifacts.catalog_urls[]? | "\(.name): \(.url)"' <<< "$RELEASE"
+            catalog_data=$(jq -r '.status.artifacts.catalog_urls[]? | "\(.name): \(.url)"' <<< "$RELEASE")
+            if [[ -n "$catalog_data" ]]; then
+              IFS=':' read -r CATALOG_NAME CATALOG_URL <<< "$catalog_data"
+
+              # --- Verification (Optional) ---
+              echo "Successfully captured the first catalog entry:"
+              echo "Name: $CATALOG_NAME"
+              echo "URL:  $CATALOG_URL"
+            else
+              echo "No catalog data found"
+            fi
             
-            echo "=== Image URLs ==="
-            jq -r '.status.artifacts.images[]?.urls[]?' <<< "$RELEASE"
-            
-            echo "=== All Artifacts ==="
-            jq '.status.artifacts' <<< "$RELEASE"
+            # Initialize variables to ensure they are clean
+            APP_VERSION=""
+            APP_RELEASE=""
+
+            # --- 1. Run the jq command and pipe the output to a while loop ---
+            while IFS='=' read -r KEY VALUE; do
+                case "$KEY" in
+                    version)
+                        APP_VERSION="$VALUE"
+                        ;;
+                    release)
+                        APP_RELEASE="$VALUE"
+                        ;;
+                esac
+            done < <(
+                jq -r --arg app "$CATALOG_NAME" '
+                    .status.artifacts.filtered_snapshot | fromjson |
+                    select(.application == $app) |
+                    .components[] |
+                    .metadata.labels[] |
+                    select(.name == "version" or .name == "release") |
+                    "\(.name)=\(.value)"
+                ' <<< "$RELEASE"
+            )
+            echo -n "$relStatus" > "$(results.ReleaseStatus.path)"
+            echo -n "$CATALOG_NAME" > "$(results.AppName.path)"
+            echo -n "$APP_VERSION" > "$(results.AppVersion.path)"
+            echo -n "$APP_RELEASE" > "$(results.AppRelease.path)"
+            echo -n "$CATALOG_URL" > "$(results.CatalogURL.path)"
     - name: send-slack-notification
       params:
         - name: message
@@ -68,6 +122,16 @@ spec:
           value: $(params.secret-name)
         - name: key-name
           value: $(params.key-name)
+        - name: image_url
+          value: $(tasks.print-catalog-urls.results.CatalogURL)
+        - name: version
+          value: $(tasks.print-catalog-urls.results.AppVersion)
+        - name: build_version
+          value: $(tasks.print-catalog-urls.results.AppRelease)
+        - name: build_type
+          value: $(tasks.print-catalog-urls.results.ReleaseStatus)
+        - name: component_name
+          value: $(tasks.print-catalog-urls.results.AppName)
       taskRef:
         resolver: git
         params:
