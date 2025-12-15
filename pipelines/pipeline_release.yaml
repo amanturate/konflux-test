@@ -52,6 +52,14 @@ spec:
             IFS='/' read -r RELEASE_NAMESPACE RELEASE_NAME <<< "$(params.release)"
             RELEASE=$(kubectl get release "$RELEASE_NAME" -n "$RELEASE_NAMESPACE" -o json)
             echo "$RELEASE"
+            echo "=== Catalog URLs ==="
+            jq -r '.status.artifacts.catalog_urls[]? | "\(.name): \(.url)"' <<< "$RELEASE"
+            
+            echo "=== Image URLs ==="
+            jq -r '.status.artifacts.images[]?.urls[]?' <<< "$RELEASE"
+            
+            echo "=== All Artifacts ==="
+            jq '.status.artifacts' <<< "$RELEASE"
     - name: send-slack-notification
       params:
         - name: message
