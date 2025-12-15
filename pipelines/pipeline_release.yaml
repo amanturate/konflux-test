@@ -1,7 +1,7 @@
 kind: Pipeline
 apiVersion: tekton.dev/v1
 metadata:
-  name: slack-notify-pipeline
+  name: release-notify-pipeline
 spec:
   params:
     - name: secret-name
