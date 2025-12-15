@@ -14,12 +14,6 @@ spec:
       type: string
     - name: releasePlan
       type: string
-    - name: releasePlanAdmission
-      type: string
-      default: ""
-    - name: releaseServiceConfig
-      type: string
-      default: ""
     - name: snapshot
       type: string
     - name: ociStorage
@@ -35,38 +29,6 @@ spec:
       type: string
       default: "/var/workdir/release"
   tasks:
-    # Step 1: Collect the Release data (includes status.artifacts)
-    - name: collect-data
-      taskRef:
-        resolver: "git"
-        params:
-          - name: url
-            value: https://github.com/konflux-ci/release-service-catalog.git
-          - name: revision
-            value: production
-          - name: pathInRepo
-            value: tasks/managed/collect-data/collect-data.yaml
-      params:
-        - name: release
-          value: $(params.release)
-        - name: releasePlan
-          value: $(params.releasePlan)
-        - name: releasePlanAdmission
-          value: $(params.releasePlanAdmission)
-        - name: releaseServiceConfig
-          value: $(params.releaseServiceConfig)
-        - name: snapshot
-          value: $(params.snapshot)
-        - name: subdirectory
-          value: "data"
-        - name: ociStorage
-          value: $(params.ociStorage)
-        - name: dataDir
-          value: $(params.dataDir)
-        - name: taskGitUrl
-          value: https://github.com/konflux-ci/release-service-catalog.git
-        - name: taskGitRevision
-          value: production
     - name: print-catalog-urls
       taskRef:
         resolver: "git"
@@ -80,24 +42,16 @@ spec:
       params:
         - name: image
           value: quay.io/konflux-ci/release-service-utils:02a8ddcd16113371a255fd1ef0a196399d300162
+        - name: release
+          value: $(params.release)
         - name: script
           value: |
             #!/usr/bin/env bash
             set -ex
             
-            # Path to the Release CR JSON (contains status.artifacts)
-            RELEASE_FILE="$(params.dataDir)/$(tasks.collect-data.results.release)"
-            
-            echo "=== Catalog URLs ==="
-            jq -r '.status.artifacts.catalog_urls[]? | "\(.name): \(.url)"' "$RELEASE_FILE"
-            
-            echo "=== Image URLs ==="
-            jq -r '.status.artifacts.images[]?.urls[]?' "$RELEASE_FILE"
-            
-            echo "=== All Artifacts ==="
-            jq '.status.artifacts' "$RELEASE_FILE"
-      runAfter:
-        - collect-data
+            IFS='/' read -r RELEASE_NAMESPACE RELEASE_NAME <<< "$(params.release)"
+            RELEASE=$(kubectl get release "$RELEASE_NAME" -n "$RELEASE_NAMESPACE" -o json)
+            echo "$RELEASE"
     - name: send-slack-notification
       params:
         - name: message
