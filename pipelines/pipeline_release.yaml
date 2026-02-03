@@ -42,7 +42,7 @@ spec:
       params:
         - name: release
           value: $(params.release)
-        - name: release
+        - name: snapshot
           value: $(params.snapshot)
     - name: send-slack-notification
       params:
