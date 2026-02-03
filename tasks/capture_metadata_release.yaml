@@ -6,6 +6,8 @@ spec:
   params:
     - name: release 
       type: string
+    - name: snapshot
+      type: string
   results:
     - name: AppName
       type: string
@@ -49,31 +51,42 @@ spec:
             else
               echo "No catalog data found"
             fi
+
+            IFS='/' read -r SNAPSHOT_NAMESPACE SNAPSHOT_NAME <<< "$(params.snapshot)"
             
             # Initialize variables to ensure they are clean
             APP_VERSION=""
             APP_RELEASE=""
 
             # --- 1. Run the jq command and pipe the output to a while loop ---
-            while IFS='=' read -r KEY VALUE; do
-                case "$KEY" in
-                    version)
-                        APP_VERSION="$VALUE"
-                        ;;
-                    release)
-                        APP_RELEASE="$VALUE"
-                        ;;
-                esac
-            done < <(
-                jq -r --arg app "$CATALOG_NAME" '
-                    .status.artifacts.filtered_snapshot | fromjson |
-                    select(.application == $app) |
-                    .components[] |
-                    .metadata.labels[] |
-                    select(.name == "version" or .name == "release") |
-                    "\(.name)=\(.value)"
-                ' <<< "$RELEASE"
-            )
+            # while IFS='=' read -r KEY VALUE; do
+            #     case "$KEY" in
+            #         version)
+            #             APP_VERSION="$VALUE"
+            #             ;;
+            #         release)
+            #             APP_RELEASE="$VALUE"
+            #             ;;
+            #     esac
+            # done < <(
+            #     jq -r --arg app "$CATALOG_NAME" '
+            #         .status.artifacts.filtered_snapshot | fromjson |
+            #         select(.application == $app) |
+            #         .components[] |
+            #         .metadata.labels[] |
+            #         select(.name == "version" or .name == "release") |
+            #         "\(.name)=\(.value)"
+            #     ' <<< "$RELEASE"
+            # )
+            
+            SNAPSHOT=$(kubectl get snapshot "$SNAPSHOT_NAME" -n "$SNAPSHOT_NAMESPACE" -o json)
+            echo $SNAPSHOT
+            CONTAINER_IMAGE=$(jq -r --arg catalog "$CATALOG_NAME" '.spec.components[]? | select(.name == $catalog) | .containerImage // empty' <<< "$SNAPSHOT")
+            echo "CONTAINER_IMAGE: $CONTAINER_IMAGE"
+
+            APP_VERSION=$(skopeo inspect --format '{{.Labels.version}}' "docker://$CONTAINER_IMAGE")
+            APP_RELEASE=$(skopeo inspect --format '{{.Labels.release}}' "docker://$CONTAINER_IMAGE")
+
             echo -n "$relStatus" > "$(results.ReleaseStatus.path)"
             echo -n "$CATALOG_NAME" > "$(results.AppName.path)"
             echo -n "$APP_VERSION" > "$(results.AppVersion.path)"
