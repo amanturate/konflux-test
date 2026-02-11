@@ -50,7 +50,7 @@ spec:
         - name: trigger_type
           valueFrom:
             fieldRef:
-              fieldPath: metadata.labels['pipelines.appstudio.openshift.io/trigger']
+              fieldPath: metadata.labels['custom.appstudio.openshift.io/trigger']
       script: |
         set -e
         dnf -y install jq
