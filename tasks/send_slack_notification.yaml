@@ -116,7 +116,7 @@ spec:
         echo "$IMAGE_URL"
         echo "$VERSION"
         echo "$BUILD_VERSION"
-        echo $COMPONENT_NAME
+        echo "$TRIGGER_TYPE"
 
         data='{component_name: $component_name,
           build_type: $build_type,
@@ -131,7 +131,7 @@ spec:
         else
           echo "Push request triggered"
         fi
-        data_populated=$(jq --compact-output --null-input --arg component_name "$COMPONENT_NAME" --arg build_type "$BUILD_TYPE" --arg snapshot_name "$SNAPSHOT_NAME" --arg image_url "$IMAGE_URL" --arg version "$VERSION" --arg build_version "$BUILD_VERSION" "$data")
+        data_populated=$(jq --compact-output --null-input --arg component_name "$COMPONENT_NAME" --arg build_type "$BUILD_TYPE" --arg snapshot_name "$SNAPSHOT_NAME" --arg image_url "$IMAGE_URL" --arg version "$VERSION" --arg build_version "$BUILD_VERSION" --arg trigger_type "$TRIGGER_TYPE" "$data")
         echo "data_populated: ${data_populated}"
 
         curl -X POST -H 'Content-type: application/json' --data "${data_populated}" "$WEBHOOK_URL"
