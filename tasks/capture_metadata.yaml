@@ -25,6 +25,9 @@ spec:
     - name: build_version
       description: Build version of application
       type: string
+    - name: trigger_type
+      description: Type of trigger that triggered the build
+      type: string
   steps:
     - name: capturedetails
       image: quay.io/konflux-ci/konflux-test:stable
@@ -44,6 +47,10 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.labels['custom.appstudio.openshift.io/build_type']
+        - name: trigger_type
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.labels['pipelines.appstudio.openshift.io/trigger']
       script: |
         set -e
         dnf -y install jq
@@ -63,11 +70,13 @@ spec:
         echo "  build_type: $build_type"
         echo "  version: $version"
         echo "  build_version: $build_version"
-
+        echo "  trigger_type: $trigger_type"
+        echo "--------------------------------"
         echo -n "${component_name}" | tee $(results.component_name.path)
         echo -n "${snapshot_name}" | tee $(results.snapshot_name.path)
         echo -n "${build_type}" | tee $(results.build_type.path)
         echo -n "${image_url}" | tee $(results.image_url.path)
         echo -n "${version}" | tee $(results.version.path)
         echo -n "${build_version}" | tee $(results.build_version.path)
+        echo -n "${trigger_type}" | tee $(results.trigger_type.path)
         RESULT="SUCCESS"

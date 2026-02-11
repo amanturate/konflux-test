@@ -48,6 +48,9 @@ spec:
           value: $(tasks.capture-metadata.results.version)
         - name: build_version
           value: $(tasks.capture-metadata.results.build_version)
+        - name: trigger_type
+          default: ""
+          value: $(tasks.capture-metadata.results.trigger_type)
       taskRef:
         resolver: git
         params:

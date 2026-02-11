@@ -44,6 +44,10 @@ spec:
       description: Build version of application
       type: string
       default: ""
+    - name: trigger_type
+      description: Type of trigger that triggered the build
+      type: string
+      default: ""
   volumes:
     - name: webhook-secret
       secret:
@@ -77,6 +81,8 @@ spec:
           value: $(params.version)
         - name: BUILD_VERSION
           value: $(params.build_version)
+        - name: TRIGGER_TYPE
+          value: $(params.trigger_type)
       script: |
         #!/usr/bin/env bash
         #some components used from https://github.com/konflux-ci/build-definitions/blob/main/task/slack-webhook-notification/0.1/slack-webhook-notification.yaml
@@ -117,8 +123,14 @@ spec:
           snapshot_name: $snapshot_name,
           image_url: $image_url,
           version: $version,
-          build_version: $build_version}'
+          build_version: $build_version,
+          trigger_type: $trigger_type}'
 
+        if [ "$TRIGGER_TYPE" = "pull" ]; then
+          echo "Pull request triggered"
+        else
+          echo "Push request triggered"
+        fi
         data_populated=$(jq --compact-output --null-input --arg component_name "$COMPONENT_NAME" --arg build_type "$BUILD_TYPE" --arg snapshot_name "$SNAPSHOT_NAME" --arg image_url "$IMAGE_URL" --arg version "$VERSION" --arg build_version "$BUILD_VERSION" "$data")
         echo "data_populated: ${data_populated}"
 
