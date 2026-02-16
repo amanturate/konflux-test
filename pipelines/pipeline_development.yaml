@@ -23,7 +23,7 @@ spec:
         resolver: git
         params:
           - name: url
-            value: https://github.com/amanturate/konflux-test
+            value: https://github.com/urilavi2/konflux-slack-jetson-update-message
           - name: revision
             value: main
           - name: pathInRepo
@@ -36,6 +36,8 @@ spec:
           value: $(params.secret-name)
         - name: key-name
           value: $(params.key-name)
+        - name: application_name
+          value: $(tasks.capture-metadata.results.application_name)
         - name: component_name
           value: $(tasks.capture-metadata.results.component_name)
         - name: build_type
@@ -44,17 +46,19 @@ spec:
           value: $(tasks.capture-metadata.results.snapshot_name)
         - name: image_url
           value: $(tasks.capture-metadata.results.image_url)
-        - name: version
-          value: $(tasks.capture-metadata.results.version)
-        - name: build_version
-          value: $(tasks.capture-metadata.results.build_version)
+        - name: jetpack_version
+          value: $(tasks.capture-metadata.results.jetpack_version)
+        - name: kernel_version
+          value: $(tasks.capture-metadata.results.kernel_version)
         - name: trigger_type
           value: $(tasks.capture-metadata.results.trigger_type)
+        - name: current_time_utc
+          value: $(tasks.capture-metadata.results.current_time_utc)
       taskRef:
         resolver: git
         params:
           - name: url
-            value: https://github.com/amanturate/konflux-test
+            value: https://github.com/urilavi2/konflux-slack-jetson-update-message
           - name: revision
             value: main
           - name: pathInRepo

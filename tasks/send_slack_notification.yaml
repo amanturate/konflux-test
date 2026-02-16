@@ -11,6 +11,10 @@ spec:
   description: >-
     Sends message to slack using incoming webhook
   params:
+    - name: current_time_utc
+      description: Current time in UTC
+      type: string
+      default: ""
     - name: message
       description: Message to be sent
     - name: secret-name
@@ -20,6 +24,10 @@ spec:
       default: slack-webhook-notification-secret
     - name: key-name
       description: Key in the key in secret which contains webhook URL for slack.
+    - name: application_name
+      description: Name of the application
+      type: string
+      default: ""
     - name: component_name
       description: Name of the component
       type: string
@@ -36,12 +44,12 @@ spec:
       description: Path of quay repo where image is pushed
       type: string
       default: ""
-    - name: version
+    - name: jetpack_version
       description: Version of application
       type: string
       default: ""
-    - name: build_version
-      description: Build version of application
+    - name: kernel_version
+      description: Kernel version of application
       type: string
       default: ""
     - name: trigger_type
@@ -69,6 +77,8 @@ spec:
           value: $(params.key-name)
         - name: MESSAGE
           value: $(params.message)
+        - name: APPLICATION_NAME
+          value: $(params.application_name)
         - name: COMPONENT_NAME
           value: $(params.component_name)
         - name: BUILD_TYPE
@@ -77,12 +87,14 @@ spec:
           value: $(params.snapshot_name)
         - name: IMAGE_URL
           value: $(params.image_url)
-        - name: VERSION
-          value: $(params.version)
-        - name: BUILD_VERSION
-          value: $(params.build_version)
+        - name: JETPACK_VERSION
+          value: $(params.jetpack_version)
+        - name: KERNEL_VERSION
+          value: $(params.kernel_version)
         - name: TRIGGER_TYPE
           value: $(params.trigger_type)
+        - name: CURRENT_TIME_UTC
+          value: $(params.current_time_utc)
       script: |
         #!/usr/bin/env bash
         #some components used from https://github.com/konflux-ci/build-definitions/blob/main/task/slack-webhook-notification/0.1/slack-webhook-notification.yaml
@@ -110,28 +122,58 @@ spec:
           exit 1
         fi
 
+        echo "$APPLICATION_NAME"
         echo "$COMPONENT_NAME"
         echo "$BUILD_TYPE"
         echo "$SNAPSHOT_NAME"
         echo "$IMAGE_URL"
-        echo "$VERSION"
-        echo "$BUILD_VERSION"
+        echo "$JETPACK_VERSION"
+        echo "$KERNEL_VERSION"
         echo "$TRIGGER_TYPE"
+        echo "$CURRENT_TIME_UTC"
 
-        data='{component_name: $component_name,
-          build_type: $build_type,
-          snapshot_name: $snapshot_name,
-          image_url: $image_url,
-          version: $version,
-          build_version: $build_version,
-          trigger_type: $trigger_type}'
+        payload=$(cat <<EOF
+        {
+          "blocks": [
+            {
+              "type": "section",
+              "text": {
+                "type": "mrkdwn",
+                "text": "*This is a ${BUILD_TYPE} build*\n*Application Name:* ${APPLICATION_NAME}\n*Component Name:* ${COMPONENT_NAME}"
+              }
+            },
+            {
+              "type": "divider"
+            },
+            {
+              "type": "section",
+              "text": {
+                "type": "mrkdwn",
+                "text": "• *Snapshot Name:* ${SNAPSHOT_NAME}\n• *Image URL:* ${IMAGE_URL}\n• *Jetpack Version:* ${JETPACK_VERSION}\n• *Kernel Version:* ${KERNEL_VERSION}"
+              }
+            },
+            {
+              "type": "divider"
+            },
+            {
+              "type": "context",
+              "elements": [
+                {
+                  "type": "mrkdwn",
+                  "text": "Time Created: ${CURRENT_TIME_UTC}"
+                }
+              ]
+            }
+          ]
+        }
+        EOF
+        )
 
         if [ "$TRIGGER_TYPE" = "pull" ]; then
           echo "Pull request triggered"
         else
           echo "Push request triggered"
         fi
-        data_populated=$(jq --compact-output --null-input --arg component_name "$COMPONENT_NAME" --arg build_type "$BUILD_TYPE" --arg snapshot_name "$SNAPSHOT_NAME" --arg image_url "$IMAGE_URL" --arg version "$VERSION" --arg build_version "$BUILD_VERSION" --arg trigger_type "$TRIGGER_TYPE" "$data")
-        echo "data_populated: ${data_populated}"
 
-        curl -X POST -H 'Content-type: application/json' --data "${data_populated}" "$WEBHOOK_URL"
+        echo "payload: ${payload}"
+        curl -X POST -H 'Content-type: application/json' --data "$payload" "$WEBHOOK_URL"

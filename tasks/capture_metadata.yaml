@@ -7,6 +7,9 @@ spec:
     - name: SNAPSHOT
       description: The JSON string of the Snapshot under test
   results:
+    - name: application_name
+      description: Name of the application
+      type: string
     - name: component_name
       description: Name of the component
       type: string
@@ -19,20 +22,27 @@ spec:
     - name: image_url
       description: Path of quay repo where image is pushed
       type: string
-    - name: version
+    - name: jetpack_version
       description: Version of application
       type: string
-    - name: build_version
-      description: Build version of application
+    - name: kernel_version
+      description: kernel version of application
       type: string
     - name: trigger_type
       description: Type of trigger that triggered the build
+      type: string
+    - name: current_time_utc
+      description: Current time in UTC
       type: string
   steps:
     - name: capturedetails
       image: quay.io/konflux-ci/konflux-test:stable
       workingDir: /workspace
       env:
+        - name: application_name
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.labels['appstudio.openshift.io/application']
         - name: SNAPSHOT
           value: $(params.SNAPSHOT)
         - name: component_name
@@ -53,6 +63,10 @@ spec:
               fieldPath: metadata.labels['custom.appstudio.openshift.io/trigger']
       script: |
         set -e
+
+        current_time_utc=$(date -u +'%Y-%m-%d %H:%M:%S UTC')
+        echo -n "${current_time_utc}" | tee $(results.current_time_utc.path)
+
         dnf -y install jq
 
         # Extract the component container image from the SNAPSHOT JSON data
@@ -60,23 +74,25 @@ spec:
 
         image_url=$(jq -r --arg component_name "$component_name" '.components[] | select(.name == $component_name) | .containerImage' <<< "$SNAPSHOT")
 
-        version=$(skopeo inspect --format '{{.Labels.version}}' "docker://$image_url")
-        build_version=$(skopeo inspect --format '{{.Labels.release}}' "docker://$image_url")
+        jetpack_version=$(skopeo inspect --format '{{.Labels.jetpack_release_version}}' "docker://$image_url")
+        kernel_version=$(skopeo inspect --format '{{.Labels.jetpack_kernel_version}}' "docker://$image_url")
 
         # Log the extracted variable
+        echo "  application_name: $application_name"
         echo "  component_name: $component_name"
         echo "  snapshot_name: $snapshot_name"
         echo "  image_url: $image_url"
         echo "  build_type: $build_type"
-        echo "  version: $version"
-        echo "  build_version: $build_version"
+        echo "  jetpack_version: $jetpack_version"
+        echo "  kernel_version: $kernel_version"
         echo "  trigger_type: $trigger_type"
         echo "--------------------------------"
+        echo -n "${application_name}" | tee $(results.application_name.path)
         echo -n "${component_name}" | tee $(results.component_name.path)
         echo -n "${snapshot_name}" | tee $(results.snapshot_name.path)
         echo -n "${build_type}" | tee $(results.build_type.path)
         echo -n "${image_url}" | tee $(results.image_url.path)
-        echo -n "${version}" | tee $(results.version.path)
-        echo -n "${build_version}" | tee $(results.build_version.path)
+        echo -n "${jetpack_version}" | tee $(results.jetpack_version.path)
+        echo -n "${kernel_version}" | tee $(results.kernel_version.path)
         echo -n "${trigger_type}" | tee $(results.trigger_type.path)
         RESULT="SUCCESS"
