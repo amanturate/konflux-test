@@ -62,7 +62,8 @@ spec:
 
         version=$(skopeo inspect --format '{{.Labels.version}}' "docker://$image_url")
         build_version=$(skopeo inspect --format '{{.Labels.release}}' "docker://$image_url")
-
+        image_url="${image_url/#quay.io\//image-rbac-proxy.apps.stone-prod-p02.hjvn.p1.openshiftapps.com/}"
+        
         # Log the extracted variable
         echo "  component_name: $component_name"
         echo "  snapshot_name: $snapshot_name"
